@@ -1,0 +1,7 @@
+{"ts":1792656363491,"type":"Ended","model":"qwen3:14b","duration_ms":332183,"duration":"5m32s"}
+{"ts":1792742418245,"type":"Started","model":"qwen3:14b","details":{"model":"qwen3:14b","context_length":32768}}
+{"ts":1792742762432,"type":"Ended","model":"qwen3:14b","duration_ms":344187,"duration":"5m44s"}
+{"ts":1792828815500,"type":"Started","model":"qwen3:14b","details":{"model":"qwen3:14b","context_length":32768}}
+{"ts":1792829163671,"type":"Ended","model":"qwen3:14b","duration_ms":348171,"duration":"5m48s"}
+{"ts":1792915214564,"type":"Started","model":"qwen3:14b","details":{"model":"qwen3:14b","context_length":32768}}
+{"ts":1792915562752,"type":"Ended","model":"qwen3:14b","duration_ms":348188,"duration":"5m48s"}

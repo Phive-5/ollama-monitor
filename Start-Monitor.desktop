@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Ollama Monitor
+Comment=Start Ollama Monitor server and open in browser
+Exec=/home/steve/Documents/Code Testing/Ollama monitor/start-monitor.sh
+Icon=utilities-system-monitor
+Terminal=true
+Type=Application
+Categories=Utility;Development;

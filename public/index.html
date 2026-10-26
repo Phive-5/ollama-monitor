@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ollama Monitor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Ollama Monitor</h1>
+      <div class="status-bar">
+        <span id="ollamaStatus">Ollama: checking...</span>
+        <span id="monitorStatus">Monitor: stopped</span>
+        <span id="lastCheck">Last check: --</span>
+      </div>
+      <div class="controls">
+        <button id="startBtn">Start Monitor</button>
+        <button id="stopBtn" disabled>Stop Monitor</button>
+        <button id="clearBtn">Clear History</button>
+        <button id="shutdownBtn" title="Shut down server">Shut Down Server</button>
+      </div>
+    </header>
+    <section class="active">
+      <h2>Active Models</h2>
+      <div id="activeList" class="empty">No models currently running</div>
+    </section>
+    <section class="history">
+      <h2>Recent Activity (last few days)</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Event</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
