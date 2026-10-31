@@ -153,13 +153,10 @@ async function pollOnce() {
   const models = res.models.map(m => ({
     name: m.name,
     model: m.model,
-    status: m.status,
-    done: m.done,
-    total: m.total,
-    completed: m.completed,
-    duration: m.duration,
-    context_length: m.context_length,
-    size_vram: m.size_vram
+    size: m.size,
+    size_vram: m.size_vram,
+    expires_at: m.expires_at,
+    details: m.details
   }));
 
   const currentMap = buildModelMap(models);
@@ -185,8 +182,8 @@ async function pollOnce() {
         model: name,
         details: {
           model: m.model,
-          status: m.status,
-          context_length: m.context_length
+          size_vram: m.size_vram,
+          expires_at: m.expires_at
         }
       });
     } else {
@@ -201,12 +198,8 @@ async function pollOnce() {
       type: 'state_change',
       models: models.map(m => ({
         name: m.name,
-        status: m.status,
-        done: m.done,
-        total: m.total,
-        completed: m.completed,
-        duration: m.duration,
-        context_length: m.context_length
+        size_vram: m.size_vram,
+        expires_at: m.expires_at
       })),
       active_count: models.length
     });
@@ -240,6 +233,85 @@ function stopMonitor() {
   }
   lastModelsByName.clear();
 }
+
+async function ollamaRequest(path, method = 'GET', body = null) {
+  return new Promise((resolve, reject) => {
+    const url = `http://localhost:11434${path}`;
+    const opts = { method, timeout: 30000 };
+    if (body) {
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify(body);
+    }
+    const req = http.request(url, opts, (res) => {
+      let data = '';
+      res.on('data', c => (data += c));
+      res.on('end', () => {
+        try {
+          resolve({ status: res.statusCode, data: JSON.parse(data) });
+        } catch (e) {
+          resolve({ status: res.statusCode, data });
+        }
+      });
+    });
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('timeout'));
+    });
+    req.on('error', (err) => reject(err));
+    if (body) req.write(JSON.stringify(body));
+    req.end();
+  });
+}
+
+app.get('/api/model/info/:name', async (req, res) => {
+  try {
+    const result = await ollamaRequest('/api/show', 'POST', { name: req.params.name });
+    let info = result.data || {};
+    const running = currentState.models.find(m => (m.name || m.model) === req.params.name);
+    if (running) {
+      info.name = running.name;
+      info.model = running.model;
+      info.size = running.size_vram || running.total || null;
+      info.digest = running.digest || null;
+      info.modified_at = running.modified_at || null;
+      info.status = running.status || null;
+      info.done = running.done || null;
+      info.total = running.total || null;
+      info.completed = running.completed || null;
+    }
+    res.status(result.status).json(info);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/model/action/:name', async (req, res) => {
+  const { action } = req.body;
+  const name = req.params.name;
+  try {
+    if (action === 'stop-gentle') {
+      await ollamaRequest('/api/generate', 'POST', {
+        model: name,
+        prompt: '',
+        keep_alive: '5m',
+        stream: false
+      });
+    } else if (action === 'stop-now') {
+      await ollamaRequest('/api/generate', 'POST', {
+        model: name,
+        prompt: '',
+        keep_alive: 0,
+        stream: false
+      });
+    } else {
+      return res.status(400).json({ error: 'unknown action' });
+    }
+    appendHistory({ type: `model_${action}`, model: name });
+    res.json({ ok: true, action, model: name });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 app.get('/api/status', (req, res) => {
   res.json(currentState);

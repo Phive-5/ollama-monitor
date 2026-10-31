@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Ollama Monitor
 Comment=Start Ollama Monitor server and open in browser
-Exec=/home/steve/Documents/Code Testing/Ollama monitor/start-monitor.sh
+Exec=bash -c 'cd "/home/steve/Documents/Code Testing/Ollama monitor" && ./ollama-monitor.sh'
 Icon=utilities-system-monitor
 Terminal=true
 Type=Application

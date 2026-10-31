@@ -8,6 +8,17 @@ const shutdownBtn = document.getElementById('shutdownBtn');
 const activeList = document.getElementById('activeList');
 const historyBody = document.getElementById('historyBody');
 
+const modelPanel = document.getElementById('modelPanel');
+const panelBackdrop = document.getElementById('panelBackdrop');
+const panelClose = document.getElementById('panelClose');
+const panelModelName = document.getElementById('panelModelName');
+const panelContent = document.getElementById('panelContent');
+const btnInfo = document.getElementById('btnInfo');
+const btnGentle = document.getElementById('btnGentle');
+const btnForce = document.getElementById('btnForce');
+
+let selectedModel = null;
+
 function fmtTime(ts) {
   if (!ts) return '--';
   const d = new Date(ts);
@@ -41,6 +52,28 @@ async function fetchHistory() {
   } catch (e) {}
 }
 
+function fmtSize(bytes) {
+  if (!bytes) return '--';
+  const mb = bytes / 1024 / 1024;
+  if (mb < 1024) return mb.toFixed(1) + ' MB';
+  return (mb / 1024).toFixed(1) + ' GB';
+}
+
+function fmtExpires(iso) {
+  if (!iso) return '--';
+  try {
+    const d = new Date(iso);
+    const now = Date.now();
+    const sec = Math.floor((d - now) / 1000);
+    if (sec <= 0) return 'expiring now';
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `unloads in ${m}m${s}s`;
+  } catch (e) {
+    return escapeHtml(iso);
+  }
+}
+
 function renderActive(models) {
   if (!models || models.length === 0) {
     activeList.textContent = 'No models currently running';
@@ -52,21 +85,77 @@ function renderActive(models) {
   for (const m of models) {
     const card = document.createElement('div');
     card.className = 'model-card active-bloom';
-    const done = m.done != null ? m.done : (m.completed || 0);
-    const total = m.total || 1;
-    const pct = Math.min(100, Math.max(0, (done / total) * 100));
     const name = m.name || m.model || '';
-    const duration = m.duration ? `<div class="meta">Duration: <b>${escapeHtml(m.duration)}</b></div>` : '';
+    const d = m.details || {};
     card.innerHTML = `
       <div class="name">${escapeHtml(name)}</div>
-      <div class="meta">Status: ${escapeHtml(m.status || '--')} | Context: ${m.context_length || '--'}</div>
-      <div class="meta">Progress: ${done}/${total} (${pct.toFixed(0)}%)</div>
-      ${duration}
-      <div class="progress">
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-      </div>
+      <div class="meta">VRAM: ${fmtSize(m.size_vram)} | Size: ${fmtSize(m.size)}</div>
+      <div class="meta">${fmtExpires(m.expires_at)}</div>
+      ${d.family ? `<div class="meta">Family: ${escapeHtml(d.family)}</div>` : ''}
+      ${d.quantization_level ? `<div class="meta">Quant: ${escapeHtml(d.quantization_level)}</div>` : ''}
     `;
+    card.addEventListener('click', () => openModelPanel(m));
     activeList.appendChild(card);
+  }
+}
+
+function openModelPanel(m) {
+  selectedModel = m;
+  const name = m.name || m.model || '';
+  panelModelName.textContent = name;
+  panelContent.innerHTML = `<div style="color:#94a3b8;font-size:12px">Loading info for ${escapeHtml(name)}...</div>`;
+  modelPanel.classList.add('open');
+  panelBackdrop.classList.add('open');
+  fetchModelInfo(name);
+}
+
+function closeModelPanel() {
+  modelPanel.classList.remove('open');
+  panelBackdrop.classList.remove('open');
+  selectedModel = null;
+}
+
+async function fetchModelInfo(name) {
+  try {
+    const res = await fetch(`/api/model/info/${encodeURIComponent(name)}`);
+    const data = await res.json();
+    const d = data.details || {};
+    panelContent.innerHTML = `
+      <div class="kv"><b>Name:</b> ${escapeHtml(data.name || name)}</div>
+      <div class="kv"><b>Modified:</b> ${escapeHtml(data.modified_at || '--')}</div>
+      <div class="kv"><b>Size:</b> ${escapeHtml(data.size ? (data.size / 1024 / 1024).toFixed(2) + ' MB' : '--')}</div>
+      <div class="kv"><b>Digest:</b> ${escapeHtml(data.digest || '--')}</div>
+      <div class="kv"><b>Format:</b> ${escapeHtml(d.format || '--')}</div>
+      <div class="kv"><b>Family:</b> ${escapeHtml(d.family || '--')}</div>
+      <div class="kv"><b>Parameter size:</b> ${escapeHtml(d.parameter_size || '--')}</div>
+      <div class="kv"><b>Quantization:</b> ${escapeHtml(d.quantization_level || '--')}</div>
+    `;
+  } catch (e) {
+    panelContent.innerHTML = `<div class="error">Error loading info: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function sendModelAction(action, label) {
+  if (!selectedModel) return;
+  const name = selectedModel.name || selectedModel.model;
+  if (action === 'stop-now') {
+    if (!confirm(`Force stop model "${name}" now?`)) return;
+  }
+  try {
+    const res = await fetch(`/api/model/action/${encodeURIComponent(name)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    closeModelPanel();
+    fetchStatus();
+    fetchHistory();
+  } catch (e) {
+    alert(`Failed to ${label}: ${e.message}`);
   }
 }
 
@@ -143,6 +232,19 @@ if (shutdownBtn) {
     } catch (e) {}
   });
 }
+
+panelClose.addEventListener('click', closeModelPanel);
+panelBackdrop.addEventListener('click', closeModelPanel);
+
+btnInfo.addEventListener('click', () => {
+  if (!selectedModel) return;
+  fetchModelInfo(selectedModel.name || selectedModel.model);
+  closeModelPanel();
+});
+
+btnGentle.addEventListener('click', () => sendModelAction('stop-gentle', 'gently stop model'));
+
+btnForce.addEventListener('click', () => sendModelAction('stop-now', 'force stop model'));
 
 async function init() {
   await fetch('/api/start', { method: 'POST' }).catch(() => {});

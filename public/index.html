@@ -26,6 +26,22 @@
       <h2>Active Models</h2>
       <div id="activeList" class="empty">No models currently running</div>
     </section>
+
+    <div id="panelBackdrop" class="panel-backdrop"></div>
+    <div id="modelPanel" class="model-panel">
+      <div class="panel-header">
+        <h3 id="panelModelName">Model</h3>
+        <button id="panelClose">&times;</button>
+      </div>
+      <div class="panel-content" id="panelContent">
+        <div style="color:#94a3b8;font-size:12px">Select a model above</div>
+      </div>
+      <div class="panel-actions">
+        <button id="btnInfo" class="panel-btn">Show info about model</button>
+        <button id="btnGentle" class="panel-btn gentle">Stop model gentle (5 min)</button>
+        <button id="btnForce" class="panel-btn danger">Stop model now (forced)</button>
+      </div>
+    </div>
     <section class="history">
       <h2>Recent Activity (last few days)</h2>
       <div class="table-wrap">
